@@ -12,7 +12,7 @@ use cw_orch::{
     prelude::*,
 };
 use cw_orch::daemon::{ChainInfo, ChainKind};
-use cw_orch::daemon::networks::{OSMOSIS_1};
+use cw_orch::daemon::networks::{ARCHWAY_1, OSMOSIS_1};
 use cw_orch::daemon::networks::juno::JUNO_NETWORK;
 use cw_orch::daemon::queriers::Bank;
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
@@ -40,22 +40,22 @@ fn deploy() -> anyhow::Result<()> {
     let interchain = DaemonInterchainEnv::new(rt.handle(), vec![(JUNO_1, None), (OSMOSIS_1, None)], &ChannelCreationValidator)?;
 
     // setup juno chain
-    let chain = DaemonBuilder::default()
-        .handle(rt.handle())
-        .chain(JUNO_1.clone())
-        .build()?;
+    let juno = interchain.chain(JUNO_1.chain_id)?;
+
+    let osmosis = interchain.chain(OSMOSIS_1.chain_id)?;
 
     // Sanity checks
-    let sender = chain.sender();
-    let bank = chain.query_client::<Bank>();
+    let sender = juno.sender();
+    let bank = juno.query_client::<Bank>();
     let balance = rt.block_on(bank.balance(sender.clone(), Some("ujuno".to_string()))).unwrap();
     println!("balance: {:?}", balance);
 
     // Setup
-    let abstr = Abstract::load_from(chain.clone())?;
-    let client = AbstractClient::new(chain.clone()).unwrap();
-    let home_account_client = client.account_builder().namespace(Namespace::new("icaa-test")?).build()?;
-    let home_acc = AbstractAccount::new(&abstr, home_account_client.id()?);
+    let abstr = Abstract::load_from(juno.clone())?;
+    let client = AbstractClient::new(juno.clone()).unwrap();
+    let home_account_client = client.account_builder().namespace(Namespace::new("icaa-test-2")?).build()?;
+    let home_account_id = home_account_client.id()?;
+    let home_acc = AbstractAccount::new(&abstr, home_account_id.clone());
 
     // Check and enable IBC
     if !home_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
@@ -66,10 +66,10 @@ fn deploy() -> anyhow::Result<()> {
     // CHeck for and register remote account on osmosis
     // @feedback: it would be really nice to be able to query a module directly from the account
     let ibc_client_address = home_acc.manager.module_info(IBC_CLIENT_ID)?.unwrap().address;
-    let mut ibc_client = IbcClient::new(IBC_CLIENT_ID, chain.clone());
+    let mut ibc_client = IbcClient::new(IBC_CLIENT_ID, juno.clone());
     ibc_client.set_address(&ibc_client_address);
-    let mut remote_accounts = ibc_client.list_accounts(None, None)?.accounts;
-    println!("accounts: {:?}", remote_accounts);
+    let mut remote_proxies = ibc_client.list_remote_proxies_by_account_id(home_account_id)?.proxies;
+    println!("remote_proxies: {:?}", remote_proxies);
 
     // could sanity check that osmosis is an available host
     // let remote_hosts = ibc_client.list_remote_hosts()?.hosts;
@@ -77,14 +77,14 @@ fn deploy() -> anyhow::Result<()> {
 
     let home_chain_id = JUNO_1.chain_id.to_string();
 
-    if remote_accounts.iter().find(|(_, chain, _)| chain == &ChainName::from_str("osmosis").unwrap()).is_none() {
-        let remote_acc_tx = home_acc.register_remote_account("osmosis")?;
+    if remote_proxies.iter().find(|(chain, _)| chain == &ChainName::from_str("osmosis").unwrap()).is_none() {
         println!("Registering remote account on osmosis");
+        let remote_acc_tx = home_acc.register_remote_account("osmosis")?;
         // @feedback chain id or chain name?
         interchain.wait_ibc(&home_chain_id, remote_acc_tx)?;
 
-        remote_accounts = ibc_client.list_accounts(None, None)?.accounts;
-        println!("accounts: {:?}", remote_accounts);
+        remote_proxies = ibc_client.list_remote_proxies_by_account_id(home_account_id)?.proxies;
+        println!("remote_proxies: {:?}", remote_proxies);
     }
 
     let home_balance = home_account_client.query_balance("ujuno")?;
@@ -92,7 +92,7 @@ fn deploy() -> anyhow::Result<()> {
     if home_balance.is_zero() {
         // @feedback make it easier to send funds from wallet?
         //  - maybe a acc_client.deposit() method
-        rt.block_on(chain.daemon.sender.bank_send(home_account_client.proxy()?.as_str(), coins(500, "ujuno")))?;
+        rt.block_on(juno.daemon.sender.bank_send(home_account_client.proxy()?.as_str(), coins(500, "ujuno")))?;
     }
 
     // Send funds to the remote account
