@@ -3,7 +3,7 @@ use std::str::FromStr;
 use abstract_client::{AbstractClient, Namespace};
 use abstract_core::ibc_client::QueryMsgFns;
 use abstract_core::ibc_host::{HelperAction, HostAction};
-use abstract_core::manager;
+use abstract_core::{manager, PROXY};
 use abstract_core::manager::ModuleInstallConfig;
 use abstract_core::objects::{AccountId, AssetEntry};
 use abstract_core::objects::account::AccountTrace;
@@ -40,8 +40,8 @@ const IBC_CLIENT_ID: &'static str = "abstract:ibc-client";
 
 const HOME_CHAIN_NAME: &str = "juno";
 const FIRST_HOP_CHAIN_NAME: &str = "archway";
-const SECOND_HOP_CHAIN_NAME: &str = "osmosis";
-const THIRD_HOP_CHAIN_NAME: &str = FIRST_HOP_CHAIN_NAME;
+const SECOND_HOP_CHAIN_NAME: &str = "juno";
+const THIRD_HOP_CHAIN_NAME: &str = "archway";
 
 fn deploy() -> anyhow::Result<()> {
     let rt = Runtime::new()?;
@@ -63,7 +63,7 @@ fn deploy() -> anyhow::Result<()> {
     // Setup
     let juno_abstr = Abstract::load_from(juno.clone())?;
     let juno_client = AbstractClient::new(juno.clone()).unwrap();
-    let home_account_client = juno_client.account_builder().namespace(Namespace::new("icaa-test")?).build()?;
+    let home_account_client = juno_client.account_builder().namespace(Namespace::new("icaa-cross-back")?).build()?;
     let home_account_id = home_account_client.id()?;
     let home_acc = AbstractAccount::new(&juno_abstr, home_account_id.clone());
 
@@ -128,20 +128,20 @@ fn deploy() -> anyhow::Result<()> {
     let remote_proxies = archway_ibc_client.list_remote_proxies_by_account_id(archway_account_id.clone())?.proxies;
     println!("archway remote_proxies: {:?}", remote_proxies);
 
-
     // check whether juno>archway has registered osmosis
     if remote_proxies.iter().find(|(chain, _)| chain == &ChainName::from_str(SECOND_HOP_CHAIN_NAME).unwrap()).is_none() {
         println!("Registering remote account from archway on osmosis");
         let home_manager = &home_acc.manager;
         let result = home_manager.execute_on_remote_module(
             FIRST_HOP_CHAIN_NAME.into(),
-            "abstract:proxy",
+            PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
                     host_chain: SECOND_HOP_CHAIN_NAME.into(),
                     base_asset: None,
                     namespace: None,
-                    install_modules: vec![ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:ibc-client")?, None)],
+                    install_modules: vec![],
+                    // install_modules: vec![ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:ibc-client")?, None)],
                 }],
             })?,
             None,
@@ -169,7 +169,7 @@ fn deploy() -> anyhow::Result<()> {
         let home_manager = &home_acc.manager;
         let enable_ibc_tx = home_manager.execute_on_remote_module(
             FIRST_HOP_CHAIN_NAME.into(),
-            "abstract:proxy",
+            PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                     host_chain: SECOND_HOP_CHAIN_NAME.to_string(),
@@ -202,7 +202,7 @@ fn deploy() -> anyhow::Result<()> {
         let home_manager = &home_acc.manager;
         let result = home_manager.execute_on_remote_module(
             FIRST_HOP_CHAIN_NAME.into(),
-            "abstract:proxy",
+            PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                     host_chain: SECOND_HOP_CHAIN_NAME.to_string(),
@@ -210,13 +210,13 @@ fn deploy() -> anyhow::Result<()> {
                         manager_msg: manager::ExecuteMsg::ExecOnModule {
                             exec_msg: to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
-                                    host_chain: "juno".into(),
+                                    host_chain: THIRD_HOP_CHAIN_NAME.into(),
                                     base_asset: None,
                                     namespace: None,
                                     install_modules: vec![ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:ibc-client")?, None)],
                                 }],
                             })?,
-                            module_id: "abstract:proxy".to_string(),
+                            module_id: PROXY.to_string(),
                         }
                     },
                     callback_info: None,
