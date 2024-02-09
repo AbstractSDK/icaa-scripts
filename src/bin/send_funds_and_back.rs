@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
-use abstract_core::ibc_client::QueryMsgFns;
+
 use abstract_core::ibc_host::{HelperAction, HostAction};
 use abstract_core::objects::chain_name::ChainName;
 use abstract_core::PROXY;
 use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use cosmwasm_std::coins;
 use cw_orch::daemon::networks::juno::JUNO_NETWORK;
-use cw_orch::daemon::networks::{parse_network, ARCHWAY_1};
+use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::queriers::Bank;
 use cw_orch::daemon::{ChainInfo, ChainKind};
 use cw_orch::{contract::Deploy, prelude::*};
@@ -16,6 +16,8 @@ use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv,
 use icaa_scripts::IBC_CLIENT_ID;
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
+
+use log::warn;
 
 pub const JUNO_1: ChainInfo = ChainInfo {
     kind: ChainKind::Mainnet,
@@ -29,6 +31,7 @@ pub const JUNO_1: ChainInfo = ChainInfo {
 };
 
 const HOME_CHAIN_ID: &str = "juno-1";
+const HOME_CHAIN_NAME: &str = "juno";
 const REMOTE_CHAIN_ID: &str = "archway-1";
 const REMOTE_CHAIN_NAME: &str = "archway";
 
@@ -46,7 +49,7 @@ fn deploy() -> anyhow::Result<()> {
 
     // Home chain is where all transactions originate
     let home = interchain.chain(HOME_CHAIN_ID)?;
-    let home_denom = home_chain_info.gas_denom.clone();
+    let home_denom = home_chain_info.gas_denom;
 
     // Sanity checks
     let sender = home.sender();
@@ -54,7 +57,7 @@ fn deploy() -> anyhow::Result<()> {
     let balance = rt
         .block_on(bank.balance(sender.clone(), Some(home_denom.to_string())))
         .unwrap();
-    println!("sender balance: {:?}", balance);
+    warn!("sender balance: {:?}", balance);
 
     // Setup
     let abstr = Abstract::load_from(home.clone())?;
@@ -66,43 +69,41 @@ fn deploy() -> anyhow::Result<()> {
         .build()?;
     let home_acc = AbstractAccount::new(&abstr, home_account_client.id()?);
 
-    // Check and enable IBC
+    // Check and enable IBC on home chain
     if !home_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
-        println!("Enabling IBC");
+        warn!("Enabling IBC on {}", HOME_CHAIN_NAME);
         home_acc.manager.update_settings(Some(true))?;
     } else {
-        println!("IBC is already enabled!");
+        warn!("IBC is already enabled on {}!", HOME_CHAIN_NAME);
     }
-
-    // CHeck for and register remote account on osmosis
-    // @feedback: it would be really nice to be able to query a module directly from the account
-    let mut remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
 
     // could sanity check that osmosis is an available host
     // let remote_hosts = ibc_client.list_remote_hosts()?.hosts;
-    // println!("hosts: {:?}", remote_hosts);
+    // warn!("hosts: {:?}", remote_hosts);
 
-    if remote_proxies
+    // CHeck for and register remote account on osmosis
+    let mut remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
+
+    if !remote_proxies
         .iter()
-        .find(|(chain, _)| chain == &ChainName::from_str(REMOTE_CHAIN_NAME).unwrap())
-        .is_none()
+        .any(|(chain, _)| chain == &ChainName::from_str(REMOTE_CHAIN_NAME).unwrap())
     {
-        println!("Registering remote account on {}", REMOTE_CHAIN_NAME);
+        warn!("Registering remote account on {}", REMOTE_CHAIN_NAME);
         let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
         // @feedback chain id or chain name?
         interchain.wait_ibc(&HOME_CHAIN_ID.into(), remote_acc_tx)?;
 
         remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
-        println!("remote_proxies: {:?}", remote_proxies);
+        warn!("remote_proxies: {:?}", remote_proxies);
     } else {
-        println!("{} already registered", REMOTE_CHAIN_NAME);
+        warn!("{} already registered", REMOTE_CHAIN_NAME);
     }
 
     // Check home account balance before sending
     let home_balance = home_account_client.query_balance(home_denom)?;
-    println!("Home balance is: {}", home_balance);
+    warn!("Home balance is: {}", home_balance);
     if home_balance.is_zero() {
-        println!("Sending some funds from wallet to account.");
+        warn!("Sending some funds from wallet to account.");
         // @feedback make it easier to send funds from wallet?
         //  - maybe a acc_client.deposit() method
         rt.block_on(home.daemon.sender.bank_send(
@@ -112,10 +113,10 @@ fn deploy() -> anyhow::Result<()> {
     }
 
     // Send funds to the remote account
-    // @feedback would be great to have a send_funds method on the manager that would accept resolvable
-    //  - and an execute_ibc or close
-    // let osmo_info = abstr.ans_host.resolve(&AssetEntry::from("osmosis>osmo"))?;
-    println!("Sending funds from juno to {}.", REMOTE_CHAIN_NAME);
+    warn!(
+        "Sending funds from {} to {}.",
+        HOME_CHAIN_ID, REMOTE_CHAIN_NAME
+    );
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
@@ -128,10 +129,10 @@ fn deploy() -> anyhow::Result<()> {
     interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
 
     let home_balance = home_account_client.query_balance(home_denom)?;
-    println!("Home balance after sending: {:?}", home_balance);
+    warn!("Home balance after sending: {:?}", home_balance);
 
     // send funds back
-    println!("Requesting all funds back");
+    warn!("Requesting all funds back");
     let send_funds_tx = home_acc.manager.execute_on_module(
         "abstract:proxy",
         abstract_core::proxy::ExecuteMsg::IbcAction {
@@ -146,7 +147,7 @@ fn deploy() -> anyhow::Result<()> {
     interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
 
     let home_balance = home_account_client.query_balance(home_denom)?;
-    println!("Home balance after receiving back: {:?}", home_balance);
+    warn!("Home balance after receiving back: {:?}", home_balance);
 
     // Currently send funds, send back
     // maybe Send juno, swap juno for osmo, send back?

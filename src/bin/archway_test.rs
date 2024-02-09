@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
-use abstract_core::ibc_client::QueryMsgFns;
-use abstract_core::ibc_host::{HelperAction, HostAction};
+
+use abstract_core::ibc_host::HostAction;
 use abstract_core::manager::ModuleInstallConfig;
 use abstract_core::objects::account::AccountTrace;
 use abstract_core::objects::chain_name::ChainName;
 use abstract_core::objects::module::ModuleInfo;
-use abstract_core::objects::{AccountId, AssetEntry};
+use abstract_core::objects::AccountId;
 use abstract_core::{manager, PROXY};
-use abstract_interface::{Abstract, AbstractAccount, IbcClient, ManagerExecFns};
-use cosmwasm_std::{coins, to_json_binary};
+use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
+use cosmwasm_std::to_json_binary;
 use cw_orch::daemon::networks::juno::JUNO_NETWORK;
 use cw_orch::daemon::networks::{ARCHWAY_1, OSMOSIS_1};
 use cw_orch::daemon::queriers::Bank;
@@ -32,7 +32,7 @@ pub const JUNO_1: ChainInfo = ChainInfo {
     fcd_url: None,
 };
 
-const IBC_CLIENT_ID: &'static str = "abstract:ibc-client";
+const IBC_CLIENT_ID: &str = "abstract:ibc-client";
 
 const HOME_CHAIN_NAME: &str = "juno";
 const FIRST_HOP_CHAIN_NAME: &str = "archway";
@@ -89,10 +89,9 @@ fn deploy() -> anyhow::Result<()> {
     let home_chain_id = JUNO_1.chain_id.to_string();
 
     // check for archway
-    if remote_proxies
+    if !remote_proxies
         .iter()
-        .find(|(chain, _)| chain == &ChainName::from_str(FIRST_HOP_CHAIN_NAME).unwrap())
-        .is_none()
+        .any(|(chain, _)| chain == &ChainName::from_str(FIRST_HOP_CHAIN_NAME).unwrap())
     {
         println!("Registering remote account on archway");
         let remote_acc_tx = home_acc.register_remote_account(FIRST_HOP_CHAIN_NAME)?;
@@ -119,7 +118,7 @@ fn deploy() -> anyhow::Result<()> {
     if !archway_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
         println!("Enabling IBC on Archway");
         let enable_ibc_tx = home_acc.manager.execute_on_remote(
-            FIRST_HOP_CHAIN_NAME.into(),
+            FIRST_HOP_CHAIN_NAME,
             manager::ExecuteMsg::UpdateSettings {
                 ibc_enabled: Some(true),
             },
@@ -134,15 +133,14 @@ fn deploy() -> anyhow::Result<()> {
     println!("archway remote_proxies: {:?}", remote_proxies);
 
     // check whether juno>archway has registered osmosis
-    if remote_proxies
+    if !remote_proxies
         .iter()
-        .find(|(chain, _)| chain == &ChainName::from_str(SECOND_HOP_CHAIN_NAME).unwrap())
-        .is_none()
+        .any(|(chain, _)| chain == &ChainName::from_str(SECOND_HOP_CHAIN_NAME).unwrap())
     {
         println!("Registering remote account from archway on osmosis");
         let home_manager = &home_acc.manager;
         let result = home_manager.execute_on_remote_module(
-            FIRST_HOP_CHAIN_NAME.into(),
+            FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
@@ -183,7 +181,7 @@ fn deploy() -> anyhow::Result<()> {
         println!("Enabling IBC on Osmosis");
         let home_manager = &home_acc.manager;
         let enable_ibc_tx = home_manager.execute_on_remote_module(
-            FIRST_HOP_CHAIN_NAME.into(),
+            FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
@@ -203,19 +201,18 @@ fn deploy() -> anyhow::Result<()> {
         println!("Ibc client is installed on Osmosis!");
     }
 
-    let mut remote_proxies = list_remote_proxies(&osmosis, &osmosis_acc)?;
+    let remote_proxies = list_remote_proxies(&osmosis, &osmosis_acc)?;
     println!("osmosis remote_proxies: {:?}", remote_proxies);
 
     // check whether juno>archway>osmosis has registered juno
-    if remote_proxies
+    if !remote_proxies
         .iter()
-        .find(|(chain, _)| chain == &ChainName::from_str(HOME_CHAIN_NAME).unwrap())
-        .is_none()
+        .any(|(chain, _)| chain == &ChainName::from_str(HOME_CHAIN_NAME).unwrap())
     {
         println!("Registering remote account from osmosis on juno");
         let home_manager = &home_acc.manager;
         let result = home_manager.execute_on_remote_module(
-            FIRST_HOP_CHAIN_NAME.into(),
+            FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
@@ -247,7 +244,7 @@ fn deploy() -> anyhow::Result<()> {
         // @feedback chain id or chain name?
         interchain.wait_ibc(&home_chain_id, remote_acc_tx)?;
 
-        let mut remote_proxies = list_remote_proxies(&osmosis, &osmosis_acc)?;
+        let remote_proxies = list_remote_proxies(&osmosis, &osmosis_acc)?;
         println!("accounts: {:?}", remote_proxies);
     } else {
         println!("juno>archway>osmosis>juno exists!!!!");
