@@ -11,26 +11,13 @@ use abstract_core::objects::AccountId;
 use abstract_core::{manager, PROXY};
 use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use cosmwasm_std::to_json_binary;
-use cw_orch::daemon::networks::juno::JUNO_NETWORK;
 use cw_orch::daemon::networks::{ARCHWAY_1, OSMOSIS_1};
 use cw_orch::daemon::queriers::Bank;
-use cw_orch::daemon::{ChainInfo, ChainKind};
 use cw_orch::{contract::Deploy, prelude::*};
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
-use icaa_scripts::list_remote_proxies;
+use icaa_scripts::{JUNO_1, list_remote_proxies};
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
-
-pub const JUNO_1: ChainInfo = ChainInfo {
-    kind: ChainKind::Mainnet,
-    chain_id: "juno-1",
-    gas_denom: "ujuno",
-    gas_price: 0.0750,
-    grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
-    network_info: JUNO_NETWORK,
-    lcd_url: None,
-    fcd_url: None,
-};
 
 const IBC_CLIENT_ID: &str = "abstract:ibc-client";
 

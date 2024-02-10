@@ -23,6 +23,7 @@ abstract-interface = { version = "0.20.0", features = ["daemon"] }
 abstract-client = { version = "0.20.0" }
 abstract-core = { version = "0.20.0" }
 cosmwasm-std = { version = "1.5.0" }
+cw-asset = { version = "3.0.0" }
 
 
 #cw-orch = { version = "0.16.1", path = "../../Abstract/cw-orchestrator/cw-orch", features = ["daemon"] }

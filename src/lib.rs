@@ -1,8 +1,23 @@
 use abstract_core::ibc_client::QueryMsgFns;
 use abstract_core::objects::chain_name::ChainName;
 use abstract_interface::{AbstractAccount, IbcClient};
-use cw_orch::daemon::Daemon;
+use cw_orch::daemon::{ChainInfo, ChainKind, Daemon};
 use cw_orch::prelude::ContractInstance;
+
+use std::io::{self, Write};
+use cw_orch::daemon::networks::juno::JUNO_NETWORK;
+
+pub const JUNO_1: ChainInfo = ChainInfo {
+    kind: ChainKind::Mainnet,
+    chain_id: "juno-1",
+    gas_denom: "ujuno",
+    gas_price: 0.0750,
+    grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
+    network_info: JUNO_NETWORK,
+    lcd_url: None,
+    fcd_url: None,
+};
+
 
 pub const IBC_CLIENT_ID: &str = "abstract:ibc-client";
 
@@ -18,4 +33,12 @@ pub fn list_remote_proxies(
         .proxies;
     println!(" {:?} remote_proxies: {:?}", account.id()?, remote_proxies);
     Ok(remote_proxies)
+}
+
+pub fn press_enter_to_continue() {
+    print!("Press enter to continue... ");
+    io::stdout().flush().unwrap(); // Ensure the prompt is displayed immediately
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).expect("Failed to read line");
 }

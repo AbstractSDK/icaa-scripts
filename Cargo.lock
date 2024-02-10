@@ -2607,6 +2607,7 @@ dependencies = [
  "abstract-interface",
  "anyhow",
  "cosmwasm-std",
+ "cw-asset",
  "cw-orch",
  "cw-orch-interchain",
  "dotenv",
