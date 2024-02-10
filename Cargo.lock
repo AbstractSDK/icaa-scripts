@@ -18,11 +18,40 @@ dependencies = [
  "cw-ownable",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "protobuf",
  "semver",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "abstract-adapter"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd0f7492a8572b724e6555d72080274748675bce9b1cdb39bd153c718e843802"
+dependencies = [
+ "abstract-core",
+ "abstract-sdk",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "abstract-adapter-utils"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b73dc75f2d3d47848446b44ec58ba01ae3f5a27e3a4e0db18ba9f7fce48410cc"
+dependencies = [
+ "cosmwasm-std",
+ "cw-asset",
+ "cw20 1.1.2",
 ]
 
 [[package]]
@@ -43,6 +72,30 @@ dependencies = [
  "semver",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "abstract-astroport-adapter"
+version = "2.10.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-dex-standard",
+ "abstract-sdk",
+ "abstract-staking-standard",
+ "cosmwasm-std",
+ "lazy_static",
+]
+
+[[package]]
+name = "abstract-astrovault-adapter"
+version = "0.1.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-dex-standard",
+ "abstract-sdk",
+ "abstract-staking-standard",
+ "cosmwasm-std",
+ "lazy_static",
 ]
 
 [[package]]
@@ -84,7 +137,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "schemars",
  "semver",
  "serde",
@@ -353,6 +406,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "abstract-dex-adapter"
+version = "0.20.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-adapter",
+ "abstract-adapter-utils",
+ "abstract-astroport-adapter",
+ "abstract-astrovault-adapter",
+ "abstract-core",
+ "abstract-dex-standard",
+ "abstract-kujira-adapter",
+ "abstract-osmosis-adapter",
+ "abstract-sdk",
+ "abstract-wyndex-adapter",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus 1.1.0",
+ "cw20 1.2.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "abstract-dex-standard"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e23e8cd5147dcb8fa0b6ee662fa047dfd7779556e9c5406a2f3ef9334ac6368"
+dependencies = [
+ "abstract-adapter",
+ "abstract-adapter-utils",
+ "abstract-core",
+ "abstract-sdk",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus 1.1.0",
+ "cw20 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "abstract-ibc-client"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -430,6 +528,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "abstract-kujira-adapter"
+version = "0.2.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-dex-standard",
+ "abstract-sdk",
+ "abstract-staking-standard",
+ "cosmwasm-std",
+]
+
+[[package]]
 name = "abstract-macros"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -457,7 +566,7 @@ dependencies = [
  "cw-semver",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "schemars",
  "semver",
  "serde",
@@ -484,6 +593,17 @@ dependencies = [
  "semver",
  "serde-cw-value",
  "thiserror",
+]
+
+[[package]]
+name = "abstract-osmosis-adapter"
+version = "0.15.2"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-dex-standard",
+ "abstract-sdk",
+ "abstract-staking-standard",
+ "cosmwasm-std",
 ]
 
 [[package]]
@@ -529,7 +649,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "schemars",
  "semver",
  "serde",
@@ -551,9 +671,30 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "schemars",
  "semver",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "abstract-staking-standard"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd0ef6ff0102d78b628a837e22663f2cbbb0fb96512ed574d775b011e5f71720"
+dependencies = [
+ "abstract-adapter",
+ "abstract-adapter-utils",
+ "abstract-core",
+ "abstract-sdk",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-asset",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.3",
+ "cw20 1.1.2",
+ "schemars",
  "serde",
  "thiserror",
 ]
@@ -574,6 +715,17 @@ dependencies = [
  "cw2 1.1.2",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "abstract-wyndex-adapter"
+version = "0.20.0"
+source = "git+https://github.com/AbstractSDK/abstract.git?tag=v0.20.0#469e8fd984805281fccd2b3ad4ab4c2a36122838"
+dependencies = [
+ "abstract-dex-standard",
+ "abstract-sdk",
+ "abstract-staking-standard",
+ "cosmwasm-std",
 ]
 
 [[package]]
@@ -1214,7 +1366,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-address-like",
  "cw-storage-plus 1.1.0",
- "cw20",
+ "cw20 1.1.2",
  "thiserror",
 ]
 
@@ -1676,6 +1828,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw20"
+version = "1.2.2"
+source = "git+https://github.com/AbstractSDK/cw-plus.git?tag=v1.2.2#fb4f7e985d70f09ab880ca9c0840a1055a2715f3"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-utils 1.0.3",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "cw20-ics20"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1687,7 +1851,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "cw20",
+ "cw20 1.1.2",
  "schemars",
  "semver",
  "serde",
@@ -2604,6 +2768,7 @@ version = "0.1.0"
 dependencies = [
  "abstract-client",
  "abstract-core",
+ "abstract-dex-adapter",
  "abstract-interface",
  "anyhow",
  "cosmwasm-std",

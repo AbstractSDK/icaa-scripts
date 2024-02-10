@@ -11,7 +11,7 @@ pub const JUNO_1: ChainInfo = ChainInfo {
     kind: ChainKind::Mainnet,
     chain_id: "juno-1",
     gas_denom: "ujuno",
-    gas_price: 0.0750,
+    gas_price: 0.0950,
     grpc_urls: &["http://juno-grpc.polkachu.com:12690"],
     network_info: JUNO_NETWORK,
     lcd_url: None,
@@ -31,7 +31,7 @@ pub fn list_remote_proxies(
     let remote_proxies = ibc_client
         .list_remote_proxies_by_account_id(account.id()?)?
         .proxies;
-    println!(" {:?} remote_proxies: {:?}", account.id()?, remote_proxies);
+    println!(" Found {:?} remote proxies on: {:?}",  remote_proxies, account.id()?,);
     Ok(remote_proxies)
 }
 
@@ -42,3 +42,5 @@ pub fn press_enter_to_continue() {
     let mut input = String::new();
     io::stdin().read_line(&mut input).expect("Failed to read line");
 }
+
+pub const ABSTRACT_DEX_ADAPTER_ID: &'static str = "abstract:dex";
