@@ -15,7 +15,7 @@ use cw_orch::daemon::networks::{ARCHWAY_1, OSMOSIS_1};
 use cw_orch::daemon::queriers::Bank;
 use cw_orch::{contract::Deploy, prelude::*};
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
-use icaa_scripts::{JUNO_1, list_remote_proxies};
+use icaa_scripts::{list_remote_proxies, JUNO_1};
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
 

@@ -4,8 +4,8 @@ use abstract_interface::{AbstractAccount, IbcClient};
 use cw_orch::daemon::{ChainInfo, ChainKind, Daemon};
 use cw_orch::prelude::ContractInstance;
 
-use std::io::{self, Write};
 use cw_orch::daemon::networks::juno::JUNO_NETWORK;
+use std::io::{self, Write};
 
 pub const JUNO_1: ChainInfo = ChainInfo {
     kind: ChainKind::Mainnet,
@@ -17,7 +17,6 @@ pub const JUNO_1: ChainInfo = ChainInfo {
     lcd_url: None,
     fcd_url: None,
 };
-
 
 pub const IBC_CLIENT_ID: &str = "abstract:ibc-client";
 
@@ -31,7 +30,11 @@ pub fn list_remote_proxies(
     let remote_proxies = ibc_client
         .list_remote_proxies_by_account_id(account.id()?)?
         .proxies;
-    println!(" Found {:?} remote proxies on: {:?}",  remote_proxies, account.id()?,);
+    println!(
+        " Found {:?} remote proxies on: {:?}",
+        remote_proxies,
+        account.id()?,
+    );
     Ok(remote_proxies)
 }
 
@@ -40,7 +43,9 @@ pub fn press_enter_to_continue() {
     io::stdout().flush().unwrap(); // Ensure the prompt is displayed immediately
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Failed to read line");
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
 }
 
-pub const ABSTRACT_DEX_ADAPTER_ID: &'static str = "abstract:dex";
+pub const ABSTRACT_DEX_ADAPTER_ID: &str = "abstract:dex";
