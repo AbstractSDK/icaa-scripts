@@ -315,7 +315,7 @@ fn get_remote_balances(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
-    let remote_balances = remote.balance(remote_acc.proxy.address()?, None)?;
+    let remote_balances = remote.bank_querier().balance(remote_acc.proxy.address()?, None)?;
     println!("Remote balances: {:?}", remote_balances);
     Ok(remote_balances)
 }
@@ -332,7 +332,7 @@ fn get_remote_balance(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
-    let remote_balances = remote.balance(remote_acc.proxy.address()?, None)?;
+    let remote_balances = remote.bank_querier().balance(remote_acc.proxy.address()?, None)?;
     println!("Remote balances: {:?}", remote_balances);
 
     let remote_abstr = Abstract::load_from(remote.clone())?;
@@ -344,7 +344,7 @@ fn get_remote_balance(
         _ => anyhow::bail!("juno is not a token"),
     };
 
-    let remote_balance = remote.balance(remote_acc.proxy.address()?, Some(juno_denom))?[0].amount;
+    let remote_balance = remote.bank_querier().balance(remote_acc.proxy.address()?, Some(juno_denom))?[0].amount;
 
     Ok(remote_balance)
 }
