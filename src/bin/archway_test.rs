@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
+use abstract_std as abstract_core;
 
 use abstract_core::ibc_host::HostAction;
 use abstract_core::manager::ModuleInstallConfig;
@@ -13,8 +14,8 @@ use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use cosmwasm_std::to_json_binary;
 use cw_orch::daemon::networks::{ARCHWAY_1, OSMOSIS_1};
 use cw_orch::daemon::queriers::Bank;
+use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{contract::Deploy, prelude::*};
-use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use icaa_scripts::{list_remote_proxies, JUNO_1};
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
@@ -43,10 +44,8 @@ fn deploy() -> anyhow::Result<()> {
 
     // Sanity checks
     let sender = juno.sender();
-    let bank = juno.query_client::<Bank>();
-    let balance = rt
-        .block_on(bank.balance(sender.clone(), Some("ujuno".to_string())))
-        .unwrap();
+    let bank = juno.bank_querier();
+    let balance = bank.balance(sender.clone(), Some("ujuno".to_string()))?;
     println!("balance: {:?}", balance);
 
     // Setup
@@ -109,7 +108,6 @@ fn deploy() -> anyhow::Result<()> {
             manager::ExecuteMsg::UpdateSettings {
                 ibc_enabled: Some(true),
             },
-            None,
         )?;
         interchain.wait_ibc(&home_chain_id, enable_ibc_tx)?;
     } else {
@@ -130,15 +128,14 @@ fn deploy() -> anyhow::Result<()> {
             FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
-                msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
+                msg: abstract_core::ibc_client::ExecuteMsg::Register {
                     host_chain: SECOND_HOP_CHAIN_NAME.into(),
                     base_asset: None,
                     namespace: None,
                     install_modules: vec![],
                     // install_modules: vec![ModuleInstallConfig::new(ModuleInfo::from_id_latest("abstract:ibc-client")?, None)],
-                }],
+                },
             })?,
-            None,
         )?;
         let remote_acc_tx = result;
         // @feedback chain id or chain name?
@@ -171,17 +168,15 @@ fn deploy() -> anyhow::Result<()> {
             FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
-                msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
+                msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                     host_chain: SECOND_HOP_CHAIN_NAME.to_string(),
                     action: HostAction::Dispatch {
-                        manager_msg: manager::ExecuteMsg::UpdateSettings {
+                        manager_msgs: vec![manager::ExecuteMsg::UpdateSettings {
                             ibc_enabled: Some(true),
-                        },
+                        }],
                     },
-                    callback_info: None,
-                }],
+                },
             })?,
-            None,
         )?;
         interchain.wait_ibc(&home_chain_id, enable_ibc_tx)?;
     } else {
@@ -202,13 +197,13 @@ fn deploy() -> anyhow::Result<()> {
             FIRST_HOP_CHAIN_NAME,
             PROXY,
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
-                msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
+                msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                     host_chain: SECOND_HOP_CHAIN_NAME.to_string(),
                     action: HostAction::Dispatch {
-                        manager_msg: manager::ExecuteMsg::ExecOnModule {
+                        manager_msgs: vec![manager::ExecuteMsg::ExecOnModule {
                             exec_msg: to_json_binary(
                                 &abstract_core::proxy::ExecuteMsg::IbcAction {
-                                    msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
+                                    msg: abstract_core::ibc_client::ExecuteMsg::Register {
                                         host_chain: THIRD_HOP_CHAIN_NAME.into(),
                                         base_asset: None,
                                         namespace: None,
@@ -216,16 +211,14 @@ fn deploy() -> anyhow::Result<()> {
                                             ModuleInfo::from_id_latest("abstract:ibc-client")?,
                                             None,
                                         )],
-                                    }],
+                                    },
                                 },
                             )?,
                             module_id: PROXY.to_string(),
-                        },
+                        }],
                     },
-                    callback_info: None,
-                }],
+                },
             })?,
-            None,
         )?;
         let remote_acc_tx = result;
         // @feedback chain id or chain name?

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
+use abstract_std as abstract_core;
 
 use abstract_core::ibc_host::{HelperAction, HostAction};
 
@@ -15,8 +16,8 @@ use cw_asset::AssetInfo;
 use cw_orch::daemon::networks::parse_network;
 use cw_orch::daemon::queriers::Bank;
 use cw_orch::environment::BankQuerier;
+use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{contract::Deploy, prelude::*};
-use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use icaa_scripts::{press_enter_to_continue, IBC_CLIENT_ID, JUNO_1};
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
@@ -47,10 +48,8 @@ fn deploy() -> anyhow::Result<()> {
 
     // Sanity checks
     let sender = home.sender();
-    let bank = home.query_client::<Bank>();
-    let balance = rt
-        .block_on(bank.balance(sender.clone(), Some(home_denom.to_string())))
-        .unwrap();
+    let bank = home.bank_querier();
+    let balance = bank.balance(sender.clone(), Some(home_denom.to_string()))?;
     warn!("sender balance: {:?}", balance);
 
     // Setup abstract + home account
@@ -67,11 +66,8 @@ fn deploy() -> anyhow::Result<()> {
     let home_account_client = home_client
         .account_builder()
         .name("ICAA Test Juno Osmosis")
-        .namespace(Namespace::new("icaa-test-juno-osmosis")?)
-        .ownership(GovernanceDetails::SubAccount {
-            proxy: home_acc.proxy.addr_str()?,
-            manager: home_acc.manager.addr_str()?,
-        })
+        .namespace(Namespace::new("icaa-test-juno-osmosis-2")?)
+        .sub_account(&home_account_client)
         .build()?;
     let home_acc = AbstractAccount::new(&home_abstr, home_account_client.id()?);
 
@@ -99,7 +95,7 @@ fn deploy() -> anyhow::Result<()> {
         warn!("Registering remote account on {}", REMOTE_CHAIN_NAME);
         let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
         // @feedback chain id or chain name?
-        interchain.wait_ibc(&HOME_CHAIN_ID.into(), remote_acc_tx)?;
+        interchain.wait_ibc(&HOME_CHAIN_ID, remote_acc_tx)?;
 
         remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
         warn!("remote_proxies: {:?}", remote_proxies);
@@ -133,13 +129,13 @@ fn deploy() -> anyhow::Result<()> {
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
-            msgs: vec![abstract_core::ibc_client::ExecuteMsg::SendFunds {
+            msg: abstract_core::ibc_client::ExecuteMsg::SendFunds {
                 host_chain: REMOTE_CHAIN_NAME.into(),
                 funds: coins(home_balance.u128(), home_denom),
-            }],
+            },
         },
     )?;
-    interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
+    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
 
     // Check both balances
     let home_balance = home_account_client.query_balance(home_denom)?;
@@ -155,15 +151,14 @@ fn deploy() -> anyhow::Result<()> {
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
-            msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
+            msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                 host_chain: REMOTE_CHAIN_NAME.into(),
                 action: HostAction::Helpers(HelperAction::SendAllBack),
-                callback_info: None,
-            }],
+            },
         },
     )?;
 
-    interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
+    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
 
     let home_balance = home_account_client.query_balance(home_denom)?;
     warn!("Home balance after receiving back: {:?}", home_balance);
@@ -187,7 +182,9 @@ fn get_remote_balance(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
-    let remote_balances = remote.balance(remote_acc.proxy.address()?, None)?;
+    let remote_balances = remote
+        .bank_querier()
+        .balance(remote_acc.proxy.address()?, None)?;
     println!("Remote balances: {:?}", remote_balances);
 
     let remote_abstr = Abstract::load_from(remote.clone())?;
@@ -199,7 +196,10 @@ fn get_remote_balance(
         _ => anyhow::bail!("juno is not a token"),
     };
 
-    let remote_balance = remote.balance(remote_acc.proxy.address()?, Some(juno_denom))?[0].amount;
+    let remote_balance = remote
+        .bank_querier()
+        .balance(remote_acc.proxy.address()?, Some(juno_denom))?[0]
+        .amount;
 
     Ok(remote_balance)
 }
@@ -234,6 +234,6 @@ fn main() {
            to_add: vec![(AssetEntry::from("juno>juno"), UncheckedPriceSource::None)],
            to_remove: vec![],
        })?, None)?;
-       interchain.wait_ibc(&HOME_CHAIN_ID.into(), register_base_asset_tx)?;
+       interchain.wait_ibc(&HOME_CHAIN_ID, register_base_asset_tx)?;
 
 */

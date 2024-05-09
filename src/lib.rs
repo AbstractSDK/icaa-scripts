@@ -1,10 +1,12 @@
 use abstract_core::ibc_client::QueryMsgFns;
 use abstract_core::objects::chain_name::ChainName;
 use abstract_interface::{AbstractAccount, IbcClient};
-use cw_orch::daemon::{ChainInfo, ChainKind, Daemon};
+use abstract_std as abstract_core;
+use cw_orch::daemon::Daemon;
 use cw_orch::prelude::ContractInstance;
 
 use cw_orch::daemon::networks::juno::JUNO_NETWORK;
+use cw_orch::environment::{ChainInfo, ChainKind};
 use std::io::{self, Write};
 
 pub const JUNO_1: ChainInfo = ChainInfo {

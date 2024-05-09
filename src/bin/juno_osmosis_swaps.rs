@@ -1,7 +1,13 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
-use abstract_core::{
+use abstract_dex_adapter::msg::DexExecuteMsg::RawAction;
+use abstract_dex_adapter::msg::{DexAnsAction, DexRawAction};
+use abstract_dex_adapter::DEX_ADAPTER_ID;
+use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
+use abstract_std as abstract_core;
+use abstract_std::objects::AnsAsset;
+use abstract_std::{
     ibc_host::{HelperAction, HostAction},
     manager::ModuleInstallConfig,
     objects::{
@@ -10,18 +16,13 @@ use abstract_core::{
     },
     PROXY,
 };
-use abstract_dex_adapter::{
-    msg::{DexAction, OfferAsset},
-    DEX_ADAPTER_ID,
-};
-use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use cosmwasm_std::{coins, to_json_binary, Uint128};
 use cw_asset::AssetInfo;
+use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{
     contract::Deploy, daemon::networks::parse_network, daemon::queriers::Bank,
     environment::BankQuerier, prelude::*,
 };
-use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use log::warn;
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
@@ -57,10 +58,8 @@ fn icaa_demo() -> anyhow::Result<()> {
 
     // Sanity checks
     let sender = home.sender();
-    let bank = home.query_client::<Bank>();
-    let balance = rt
-        .block_on(bank.balance(sender.clone(), Some(home_denom.to_string())))
-        .unwrap();
+    let bank = home.bank_querier();
+    let balance = bank.balance(sender.clone(), Some(home_denom.to_string()))?;
     warn!("sender balance: {:?}", balance);
 
     // Setup abstract + home account
@@ -75,11 +74,8 @@ fn icaa_demo() -> anyhow::Result<()> {
     let home_account_client = home_client
         .account_builder()
         .name("ICAA PL Test")
-        .namespace(Namespace::new("icaa-test-juno-osmosis")?)
-        .ownership(GovernanceDetails::SubAccount {
-            proxy: parent_account_client.proxy()?.into(),
-            manager: parent_account_client.manager()?.into(),
-        })
+        .namespace(Namespace::new("icaa-test-juno-osmosis-2")?)
+        .sub_account(&parent_account_client)
         .build()?;
 
     let home_acc = AbstractAccount::new(&home_abstr, home_account_client.id()?);
@@ -112,7 +108,7 @@ fn icaa_demo() -> anyhow::Result<()> {
         // let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
         let remote_acc_tx = home_acc.manager.exec_on_module(
             to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
-                msgs: vec![abstract_core::ibc_client::ExecuteMsg::Register {
+                msg: abstract_core::ibc_client::ExecuteMsg::Register {
                     host_chain: REMOTE_CHAIN_NAME.into(),
                     base_asset: Some(AssetEntry::from(REMOTE_CHAIN_BASE_ASSET)),
                     namespace: None,
@@ -120,13 +116,13 @@ fn icaa_demo() -> anyhow::Result<()> {
                         ModuleInfo::from_id_latest(ABSTRACT_DEX_ADAPTER_ID)?,
                         None,
                     )],
-                }],
+                },
             })?,
             PROXY.to_string(),
             &[],
         )?;
         // @feedback chain id or chain name?
-        interchain.wait_ibc(&HOME_CHAIN_ID.into(), remote_acc_tx)?;
+        interchain.wait_ibc(&HOME_CHAIN_ID, remote_acc_tx)?;
 
         remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
         warn!("remote_proxies: {:?}", remote_proxies);
@@ -169,13 +165,13 @@ fn icaa_demo() -> anyhow::Result<()> {
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
-            msgs: vec![abstract_core::ibc_client::ExecuteMsg::SendFunds {
+            msg: abstract_core::ibc_client::ExecuteMsg::SendFunds {
                 host_chain: REMOTE_CHAIN_NAME.into(),
                 funds: coins(home_base_denom_balance.u128(), home_denom),
-            }],
+            },
         },
     )?;
-    interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
+    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
 
     // Check both balances
     let home_balance = home_account_client.query_balance(home_denom)?;
@@ -200,10 +196,10 @@ fn icaa_demo() -> anyhow::Result<()> {
         ABSTRACT_DEX_ADAPTER_ID,
         to_json_binary(
             &(Into::<abstract_dex_adapter::msg::ExecuteMsg>::into(
-                abstract_dex_adapter::msg::DexExecuteMsg::Action {
+                abstract_dex_adapter::msg::DexExecuteMsg::AnsAction {
                     dex: REMOTE_DEX_NAME.into(),
-                    action: DexAction::Swap {
-                        offer_asset: OfferAsset {
+                    action: DexAnsAction::Swap {
+                        offer_asset: AnsAsset {
                             name: AssetEntry::from(HOME_CHAIN_BASE_ASSET),
                             amount: remote_balance,
                         },
@@ -214,9 +210,9 @@ fn icaa_demo() -> anyhow::Result<()> {
                 },
             )),
         )?,
-        None,
+        // None,
     )?;
-    interchain.wait_ibc(&HOME_CHAIN_ID.into(), swap_tx)?;
+    interchain.wait_ibc(&HOME_CHAIN_ID, swap_tx)?;
 
     warn!(
         "Successfully swapped assets using {}'s dex on {}!",
@@ -230,15 +226,14 @@ fn icaa_demo() -> anyhow::Result<()> {
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
-            msgs: vec![abstract_core::ibc_client::ExecuteMsg::RemoteAction {
+            msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                 host_chain: REMOTE_CHAIN_NAME.into(),
                 action: HostAction::Helpers(HelperAction::SendAllBack),
-                callback_info: None,
-            }],
+            },
         },
     )?;
 
-    interchain.wait_ibc(&HOME_CHAIN_ID.into(), send_funds_tx)?;
+    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
 
     let home_balances = home_account_client.query_balances()?;
     warn!("Home balances after receiving back: {:?}", home_balances);
@@ -280,10 +275,10 @@ fn icaa_demo() -> anyhow::Result<()> {
     home_acc.manager.execute_on_module(
         DEX_ADAPTER_ID,
         Into::<abstract_dex_adapter::msg::ExecuteMsg>::into(
-            abstract_dex_adapter::msg::DexExecuteMsg::Action {
+            abstract_dex_adapter::msg::DexExecuteMsg::AnsAction {
                 dex: HOME_DEX_NAME.into(),
-                action: DexAction::Swap {
-                    offer_asset: OfferAsset {
+                action: DexAnsAction::Swap {
+                    offer_asset: AnsAsset {
                         name: AssetEntry::from(REMOTE_CHAIN_BASE_ASSET),
                         amount: home_remote_denom_balance,
                     },
@@ -315,7 +310,9 @@ fn get_remote_balances(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
-    let remote_balances = remote.bank_querier().balance(remote_acc.proxy.address()?, None)?;
+    let remote_balances = remote
+        .bank_querier()
+        .balance(remote_acc.proxy.address()?, None)?;
     println!("Remote balances: {:?}", remote_balances);
     Ok(remote_balances)
 }
@@ -332,7 +329,9 @@ fn get_remote_balance(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
-    let remote_balances = remote.bank_querier().balance(remote_acc.proxy.address()?, None)?;
+    let remote_balances = remote
+        .bank_querier()
+        .balance(remote_acc.proxy.address()?, None)?;
     println!("Remote balances: {:?}", remote_balances);
 
     let remote_abstr = Abstract::load_from(remote.clone())?;
@@ -344,7 +343,10 @@ fn get_remote_balance(
         _ => anyhow::bail!("juno is not a token"),
     };
 
-    let remote_balance = remote.bank_querier().balance(remote_acc.proxy.address()?, Some(juno_denom))?[0].amount;
+    let remote_balance = remote
+        .bank_querier()
+        .balance(remote_acc.proxy.address()?, Some(juno_denom))?[0]
+        .amount;
 
     Ok(remote_balance)
 }
@@ -379,7 +381,7 @@ fn main() {
            to_add: vec![(AssetEntry::from(HOME_CHAIN_BASE_ASSET), UncheckedPriceSource::None)],
            to_remove: vec![],
        })?, None)?;
-       interchain.wait_ibc(&HOME_CHAIN_ID.into(), register_base_asset_tx)?;
+       interchain.wait_ibc(&HOME_CHAIN_ID, register_base_asset_tx)?;
 
    // Check and enable dex adapter on home chain
    let _dex_adapter: Application<Daemon, DexAdapter<Daemon>> = if !home_acc.manager.is_module_installed(DEX_ADAPTER_ID)? {

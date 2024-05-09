@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Environment, Namespace};
-
 use abstract_core::ibc_host::{HelperAction, HostAction};
+use abstract_std as abstract_core;
 
+use abstract_core::objects::account::AccountTrace;
 use abstract_core::objects::chain_name::ChainName;
 use abstract_core::objects::gov_type::GovernanceDetails;
-use abstract_core::objects::{AccountId, AssetEntry};
-use abstract_core::objects::account::AccountTrace;
 use abstract_core::objects::salt::generate_instantiate_salt;
+use abstract_core::objects::{AccountId, AssetEntry};
 
 use abstract_core::PROXY;
 use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
@@ -68,8 +68,7 @@ fn deploy() -> anyhow::Result<()> {
 
     let code_id_hash = wasm_querier.code_id_hash(code_id)?;
     println!("code_id_hash: {:?}", code_id_hash);
-    let addr = wasm_querier
-        .instantiate2_addr(code_id, creator, salt)?;
+    let addr = wasm_querier.instantiate2_addr(code_id, creator, salt)?;
     let init2 = Addr::unchecked(addr);
     println!("init2: {:?}", init2);
 
@@ -77,7 +76,6 @@ fn deploy() -> anyhow::Result<()> {
 
     Ok(())
 }
-
 
 fn main() {
     dotenv().ok();

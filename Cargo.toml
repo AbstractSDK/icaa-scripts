@@ -13,18 +13,20 @@ rpc = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cw-orch = { version = "0.20.1", features = ["daemon"] }
-cw-orch-interchain = { version = "0.19.1", features = [
-  "daemon",
-], path = "../cw-orch-interchain/cw-orch" }
+#cw-orch = { version = "0.20.1", features = ["daemon"] }
+#cw-orch-interchain = { version = "0.19.1", features = [
+#  "daemon",
+#], path = "../cw-orch-interchain/cw-orch" }
+cw-orch = { package = "cw-orch-interchain", git = "ssh://git@github.com/AbstractSDK/cw-orch-interchain.git", tag = "v0.22.0" }
+
 #cw-orch = { features = ["daemon"], git = "https://github.com/AbstractSDK/cw-orchestrator", branch = "update/add-rpc-support" }
 # update/add-rpc-support-38
-abstract-interface = { version = "0.21.0", features = ["daemon"] }
-abstract-dex-adapter = { git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.21.0", default-features = false, features = [
-  "interface",
+abstract-interface = { version = "0.22.0", features = ["daemon"] }
+abstract-dex-adapter = { version = "0.22.1", git = "https://github.com/AbstractSDK/abstract.git", tag = "v0.22.1", default-features = false, features = [
+  #  "interface",
 ] }
-abstract-client = { version = "0.21.0" }
-abstract-core = { version = "0.21.0" }
+abstract-client = { version = "0.22.0" }
+abstract-std = { version = "0.22.0" }
 cosmwasm-std = { version = "1.5.0" }
 cw-asset = { version = "3.0.0" }
 
