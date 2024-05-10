@@ -74,7 +74,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     let home_account_client = home_client
         .account_builder()
         .name("ICAA PL Test")
-        .namespace(Namespace::new("icaa-test-juno-osmosis-2")?)
+        .namespace(Namespace::new("icaa-test-juno-osmosis-3")?)
         .sub_account(&parent_account_client)
         .build()?;
 
