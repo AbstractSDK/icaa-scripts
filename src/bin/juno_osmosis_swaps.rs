@@ -74,6 +74,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     let home_account_client = home_client
         .account_builder()
         .name("ICAA PL Test")
+        // @feedback: this namespace method should note that remote namespaces will not work
         .namespace(Namespace::new("icaa-test-juno-osmosis-3")?)
         .sub_account(&parent_account_client)
         .build()?;
@@ -83,9 +84,12 @@ fn icaa_demo() -> anyhow::Result<()> {
     press_enter_to_continue();
 
     // Check and enable IBC on home chain
+    // @feedback module installation check should be available on Abstract Client
+    // AND should be able to check IBC status (get_ibc_status)
     if !home_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
         warn!("Enabling IBC on {}", HOME_CHAIN_NAME);
-        home_acc.manager.update_settings(Some(true))?;
+        // @feedback include whether it errors if not enabled
+        home_account_client.set_ibc_status(true)?;
     } else {
         warn!("IBC is already enabled on {}!", HOME_CHAIN_NAME);
     }
@@ -97,17 +101,29 @@ fn icaa_demo() -> anyhow::Result<()> {
     // warn!("hosts: {:?}", remote_hosts);
 
     // CHeck for and register remote account on osmosis
+    // @feedback should be able to get remote account IDs (or list of remote chains)
+    // should be able to get remote accounts
+    // get_remote_accounts: Vec<Account<Daemon>>
     warn!("Checking for remote accounts on {}", REMOTE_CHAIN_NAME);
     let mut remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
+
 
     if !remote_proxies
         .iter()
         .any(|(chain, _)| chain == &ChainName::from_str(REMOTE_CHAIN_NAME).unwrap())
     {
         warn!("Registering remote account on {}", REMOTE_CHAIN_NAME);
+
+        // @feedback on below: we should be able to customize the remote account, should be named: `create_remote_account`, ensure doc comment specifies what happens if exists
         // let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
-        let remote_acc_tx = home_acc.manager.exec_on_module(
-            to_json_binary(&abstract_core::proxy::ExecuteMsg::IbcAction {
+
+        // thought: maybe we could do with account builder (like sub_account method)
+        // Ex: let remote_acc = home_client.account_builder().remote_account(home_account_client)
+
+        // @feedback - wrong doc comment, also should be named `create_remote_account`
+        // parent_account_client.create_ibc_account()
+        let remote_acc_tx = home_account_client.execute(
+            &abstract_core::proxy::ExecuteMsg::IbcAction {
                 msg: abstract_core::ibc_client::ExecuteMsg::Register {
                     host_chain: REMOTE_CHAIN_NAME.into(),
                     base_asset: Some(AssetEntry::from(REMOTE_CHAIN_BASE_ASSET)),
@@ -117,8 +133,7 @@ fn icaa_demo() -> anyhow::Result<()> {
                         None,
                     )],
                 },
-            })?,
-            PROXY.to_string(),
+            }?,
             &[],
         )?;
         // @feedback chain id or chain name?
@@ -147,11 +162,13 @@ fn icaa_demo() -> anyhow::Result<()> {
     if home_base_denom_balance.is_zero() {
         warn!("Sending some funds from wallet to account.");
         // @feedback make it easier to send funds from wallet?
-        //  - maybe a acc_client.deposit() method
+        //  - maybe acc_client.deposit() method
         let _bank_send_tx = rt.block_on(home.daemon.sender.bank_send(
+            // @feedback: home_account_client.address() to get the address of the proxy?
             home_account_client.proxy()?.as_str(),
             coins(500, home_denom),
         ))?;
+
         home_base_denom_balance = home_account_client.query_balance(home_denom)?;
     }
 
@@ -162,6 +179,7 @@ fn icaa_demo() -> anyhow::Result<()> {
         "Sending funds from {} to {}.",
         HOME_CHAIN_ID, REMOTE_CHAIN_NAME
     );
+    // @feedback: should be able to send_funds_to_remote
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
@@ -222,6 +240,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     press_enter_to_continue();
 
     // send funds back
+    // @feedback: should be able to request_remote_funds
     warn!("Requesting all funds back");
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
@@ -325,10 +344,18 @@ fn get_remote_balance(
         home_acc.id()?.seq(),
         vec![ChainName::from_str(HOME_CHAIN_NAME)?],
     )?;
+    // WE use the abstractAccount here because the ABstractClient can't load a remote account? Not sure
+
     let remote_acc = AbstractAccount::new(
         &Abstract::load_from(remote.clone())?,
         remote_account_id.clone(),
     );
+
+    // @feedback: should be able to do something like:
+    // remote_acc.balances()
+    // remote_acc.balance(X)
+    // remote_acc.ans_balance(ansX)
+
     let remote_balances = remote
         .bank_querier()
         .balance(remote_acc.proxy.address()?, None)?;
