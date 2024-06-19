@@ -55,6 +55,7 @@ fn deploy() -> anyhow::Result<()> {
         .account_builder()
         .namespace(Namespace::new("icaa-cross-back")?)
         .build()?;
+
     let home_account_id = home_account_client.id()?;
     let home_acc = AbstractAccount::new(&juno_abstr, home_account_id.clone());
 
