@@ -18,7 +18,7 @@ use abstract_std::{
 };
 use cosmwasm_std::{coins, to_json_binary, Uint128};
 use cw_asset::AssetInfo;
-use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
+use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{
     contract::Deploy, daemon::networks::parse_network, daemon::queriers::Bank,
     environment::BankQuerier, prelude::*,
@@ -123,7 +123,7 @@ fn icaa_demo() -> anyhow::Result<()> {
         // @feedback - wrong doc comment, also should be named `create_remote_account`
         // parent_account_client.create_ibc_account()
         let remote_acc_tx = home_account_client.execute(
-            &abstract_core::proxy::ExecuteMsg::IbcAction {
+            vec![&abstract_core::proxy::ExecuteMsg::IbcAction {
                 msg: abstract_core::ibc_client::ExecuteMsg::Register {
                     host_chain: REMOTE_CHAIN_NAME.into(),
                     base_asset: Some(AssetEntry::from(REMOTE_CHAIN_BASE_ASSET)),
@@ -133,7 +133,7 @@ fn icaa_demo() -> anyhow::Result<()> {
                         None,
                     )],
                 },
-            }?,
+            }.into()?],
             &[],
         )?;
         // @feedback chain id or chain name?

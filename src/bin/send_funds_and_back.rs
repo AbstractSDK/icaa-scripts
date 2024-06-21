@@ -6,7 +6,6 @@ use abstract_std as abstract_core;
 use abstract_core::ibc_host::{HelperAction, HostAction};
 
 use abstract_core::objects::chain_name::ChainName;
-use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_core::objects::{AccountId, AssetEntry};
 
 use abstract_core::PROXY;
@@ -14,9 +13,8 @@ use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use cosmwasm_std::{coins, Uint128};
 use cw_asset::AssetInfo;
 use cw_orch::daemon::networks::parse_network;
-use cw_orch::daemon::queriers::Bank;
 use cw_orch::environment::BankQuerier;
-use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
+use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{contract::Deploy, prelude::*};
 use icaa_scripts::{press_enter_to_continue, IBC_CLIENT_ID, JUNO_1};
 use pretty_env_logger::env_logger;
@@ -95,7 +93,7 @@ fn deploy() -> anyhow::Result<()> {
         warn!("Registering remote account on {}", REMOTE_CHAIN_NAME);
         let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
         // @feedback chain id or chain name?
-        interchain.wait_ibc(&HOME_CHAIN_ID, remote_acc_tx)?;
+        interchain.wait_ibc(HOME_CHAIN_ID, remote_acc_tx)?;
 
         remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
         warn!("remote_proxies: {:?}", remote_proxies);
@@ -135,7 +133,7 @@ fn deploy() -> anyhow::Result<()> {
             },
         },
     )?;
-    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
+    interchain.wait_ibc(HOME_CHAIN_ID, send_funds_tx)?;
 
     // Check both balances
     let home_balance = home_account_client.query_balance(home_denom)?;
@@ -158,7 +156,7 @@ fn deploy() -> anyhow::Result<()> {
         },
     )?;
 
-    interchain.wait_ibc(&HOME_CHAIN_ID, send_funds_tx)?;
+    interchain.wait_ibc(HOME_CHAIN_ID, send_funds_tx)?;
 
     let home_balance = home_account_client.query_balance(home_denom)?;
     warn!("Home balance after receiving back: {:?}", home_balance);

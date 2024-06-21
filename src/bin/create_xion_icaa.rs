@@ -1,26 +1,16 @@
 use std::str::FromStr;
 
 use abstract_client::{AbstractClient, Namespace};
-use abstract_dex_adapter::msg::DexExecuteMsg::RawAction;
-use abstract_dex_adapter::msg::{DexAnsAction, DexRawAction};
-use abstract_dex_adapter::DEX_ADAPTER_ID;
-use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
-use abstract_std as abstract_core;
-use abstract_std::objects::AnsAsset;
+use abstract_interface::{Abstract, AbstractAccount};
 use abstract_std::{
-    ibc_host::{HelperAction, HostAction},
-    manager::ModuleInstallConfig,
     objects::{
-        chain_name::ChainName, gov_type::GovernanceDetails, module::ModuleInfo, AccountId,
-        AssetEntry,
+        chain_name::ChainName, AccountId,
     },
-    PROXY,
 };
-use cosmwasm_std::{coins, to_json_binary, Uint128};
-use cw_asset::AssetInfo;
-use cw_orch::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
+use abstract_std::objects::module::ModuleVersion;
+use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{
-    contract::Deploy, daemon::networks::parse_network, daemon::queriers::Bank,
+    contract::Deploy, daemon::networks::parse_network,
     environment::BankQuerier, prelude::*,
 };
 use cw_orch::environment::{ChainKind, NetworkInfo};
@@ -28,7 +18,7 @@ use log::warn;
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
 
-use icaa_scripts::{press_enter_to_continue, ABSTRACT_DEX_ADAPTER_ID, IBC_CLIENT_ID, JUNO_1};
+use icaa_scripts::{press_enter_to_continue, IBC_CLIENT_ID};
 
 pub const XION_NETWORK: NetworkInfo = NetworkInfo {
     chain_name: "xion",
@@ -50,7 +40,7 @@ pub const XION_TESTNET_1: ChainInfo = ChainInfo {
 const HOME_CHAIN_ID: &str = XION_TESTNET_1.chain_id;
 const HOME_CHAIN_NAME: &str = XION_NETWORK.chain_name;
 const REMOTE_CHAIN_ID: &str = "pion-1";
-const REMOTE_CHAIN_NAME: &str = "neutron";
+const REMOTE_CHAIN_NAME: &str = "pion";
 fn icaa_demo() -> anyhow::Result<()> {
     let rt = Runtime::new()?;
 
@@ -92,7 +82,6 @@ fn icaa_demo() -> anyhow::Result<()> {
 
     let home_acc = AbstractAccount::new(&home_abstr, home_account_client.id()?);
 
-    press_enter_to_continue();
 
     // Check and enable IBC on home chain
     // @feedback module installation check should be available on Abstract Client
@@ -100,7 +89,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     if !home_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
         warn!("Enabling IBC on {}", HOME_CHAIN_NAME);
         // @feedback include whether it errors if not enabled
-        home_account_client.as_ref().manager.install_module::<Empty>("abstract:ibc-client", None, None)?;
+        home_account_client.as_ref().manager.install_module_version::<Empty>("abstract:ibc-client", ModuleVersion::Latest, None, None)?;
     } else {
         warn!("IBC is already enabled on {}!", HOME_CHAIN_NAME);
     }
@@ -140,8 +129,23 @@ fn icaa_demo() -> anyhow::Result<()> {
             vec![]
         )?;
         // @feedback chain id or chain name?
-        interchain.wait_ibc(&HOME_CHAIN_ID, remote_acc_tx)?;
+        let ibc_resp = interchain.wait_ibc(HOME_CHAIN_ID, remote_acc_tx)?;
 
+        // match &ibc_resp.packets[0].outcome {
+        //     cw_orch_interchain::types::IbcPacketOutcome::Timeout { .. } => {
+        //         panic!("Timeout!")
+        //     }
+        //     cw_orch_interchain::types::IbcPacketOutcome::Success { ack, .. } => match ack {
+        //         cw_orch_interchain::types::IbcPacketAckDecode::Error(e) => {
+        //             panic!("Expected a success ack not a error ack: {:?}", e)
+        //         }
+        //         cw_orch_interchain::types::IbcPacketAckDecode::Success(_) => {
+        //         }
+        //         cw_orch_interchain::types::IbcPacketAckDecode::NotParsed(original_ack) => {
+        //             panic!("Not parsed")
+        //         }
+        //     },
+        // }
         remote_proxies = icaa_scripts::list_remote_proxies(&home, &home_acc)?;
         warn!("remote_proxies: {:?}", remote_proxies);
     } else {

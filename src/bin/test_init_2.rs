@@ -1,29 +1,19 @@
-use std::str::FromStr;
 
-use abstract_client::{AbstractClient, Environment, Namespace};
-use abstract_core::ibc_host::{HelperAction, HostAction};
+use abstract_client::{AbstractClient, Environment};
 use abstract_std as abstract_core;
 
 use abstract_core::objects::account::AccountTrace;
-use abstract_core::objects::chain_name::ChainName;
-use abstract_core::objects::gov_type::GovernanceDetails;
 use abstract_core::objects::salt::generate_instantiate_salt;
-use abstract_core::objects::{AccountId, AssetEntry};
+use abstract_core::objects::{AccountId};
 
-use abstract_core::PROXY;
-use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
-use cosmwasm_std::{coins, Uint128};
-use cw_asset::AssetInfo;
+use abstract_interface::{Abstract};
 use cw_orch::daemon::networks::parse_network;
-use cw_orch::daemon::queriers::Bank;
-use cw_orch::environment::BankQuerier;
 use cw_orch::{contract::Deploy, prelude::*};
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
-use icaa_scripts::{press_enter_to_continue, IBC_CLIENT_ID, JUNO_1};
+use icaa_scripts::{press_enter_to_continue};
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
 
-use log::warn;
 
 const HOME_CHAIN_ID: &str = "osmosis-1";
 const HOME_CHAIN_NAME: &str = "osmosis";
