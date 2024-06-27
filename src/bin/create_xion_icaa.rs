@@ -5,9 +5,10 @@ use abstract_interface::{Abstract, AbstractAccount};
 use abstract_std::{
     objects::{
         chain_name::ChainName, AccountId,
-    },
+    }, ibc_host::HostAction, PROXY, proxy, ibc_client, manager,
 };
 use abstract_std::objects::module::ModuleVersion;
+use cosmwasm_std::{to_json_binary, wasm_execute};
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
 use cw_orch::{
     contract::Deploy, daemon::networks::parse_network,
@@ -17,8 +18,9 @@ use cw_orch::environment::{ChainKind, NetworkInfo};
 use log::warn;
 use pretty_env_logger::env_logger;
 use tokio::runtime::Runtime;
+use cw721_base::ExecuteMsg as NftExecuteMsg;
 
-use icaa_scripts::{press_enter_to_continue, IBC_CLIENT_ID};
+use icaa_scripts::{IBC_CLIENT_ID};
 
 pub const XION_NETWORK: NetworkInfo = NetworkInfo {
     chain_name: "xion",
@@ -41,6 +43,7 @@ const HOME_CHAIN_ID: &str = XION_TESTNET_1.chain_id;
 const HOME_CHAIN_NAME: &str = XION_NETWORK.chain_name;
 const REMOTE_CHAIN_ID: &str = "pion-1";
 const REMOTE_CHAIN_NAME: &str = "pion";
+const REMOTE_NFT_ADDR: &str = "neutron1d2s4ss5k5wqntnv7zj65q5wj67sjfedvn6wzpr82mqatuksdk6cqjqatcc";
 fn icaa_demo() -> anyhow::Result<()> {
     let rt = Runtime::new()?;
 
@@ -93,8 +96,6 @@ fn icaa_demo() -> anyhow::Result<()> {
     } else {
         warn!("IBC is already enabled on {}!", HOME_CHAIN_NAME);
     }
-
-    press_enter_to_continue();
 
     // could sanity check that osmosis is an available host
     // let remote_hosts = ibc_client.list_remote_hosts()?.hosts;
@@ -154,6 +155,37 @@ fn icaa_demo() -> anyhow::Result<()> {
             REMOTE_CHAIN_NAME, HOME_CHAIN_NAME
         );
     }
+
+    let remote_nft_tx = home_account_client.as_ref().manager.execute_on_module(
+        PROXY,
+        proxy::ExecuteMsg::IbcAction {
+            msg: ibc_client::ExecuteMsg::RemoteAction {
+                host_chain: REMOTE_CHAIN_NAME.to_string(),
+                action: HostAction::Dispatch {
+                    manager_msgs: vec![manager::ExecuteMsg::ExecOnModule {
+                        module_id: PROXY.to_string(),
+                        exec_msg: to_json_binary(&proxy::ExecuteMsg::ModuleAction {
+                            msgs: vec![wasm_execute(
+                                REMOTE_NFT_ADDR,
+                                &NftExecuteMsg::<Option<Empty>, Empty>::Mint {
+                                    token_id: "disregarded".to_string(),
+                                    owner: "disregarded".to_string(),
+                                    token_uri: None,
+                                    extension: None,
+                                },
+                                vec![],
+                            )?
+                            .into()],
+                        })?,
+                    }],
+                },
+            },
+        },
+    )?;
+
+    interchain.wait_ibc(HOME_CHAIN_ID, remote_nft_tx)?;
+
+    println!("Minted nft");
 
 
     Ok(())
