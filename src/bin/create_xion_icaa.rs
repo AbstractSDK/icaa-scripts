@@ -80,6 +80,7 @@ fn icaa_demo() -> anyhow::Result<()> {
         .account_builder()
         .name("ICAA PL Test")
         // @feedback: this namespace method should note that remote namespaces will not work
+        // @uno-feedback: Which namespace method? You mean we should note that you can't have sub-account from different chain?
         .sub_account(&parent_account_client)
         .build()?;
 
@@ -87,11 +88,11 @@ fn icaa_demo() -> anyhow::Result<()> {
 
 
     // Check and enable IBC on home chain
-    // @feedback module installation check should be available on Abstract Client
+    // @feedback✅ module installation check should be available on Abstract Client
     // AND should be able to check IBC status (get_ibc_status)
     if !home_acc.manager.is_module_installed(IBC_CLIENT_ID)? {
         warn!("Enabling IBC on {}", HOME_CHAIN_NAME);
-        // @feedback include whether it errors if not enabled
+        // @feedback✅ include whether it errors if not enabled
         home_account_client.as_ref().manager.install_module_version::<Empty>("abstract:ibc-client", ModuleVersion::Latest, None, None)?;
     } else {
         warn!("IBC is already enabled on {}!", HOME_CHAIN_NAME);
@@ -102,7 +103,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     // warn!("hosts: {:?}", remote_hosts);
 
     // CHeck for and register remote account on osmosis
-    // @feedback should be able to get remote account IDs (or list of remote chains)
+    // @feedback✅ should be able to get remote account IDs (or list of remote chains)
     // should be able to get remote accounts
     // get_remote_accounts: Vec<Account<Daemon>>
     warn!("Checking for remote accounts on {}", REMOTE_CHAIN_NAME);
@@ -115,13 +116,13 @@ fn icaa_demo() -> anyhow::Result<()> {
     {
         warn!("Registering remote account on {}", REMOTE_CHAIN_NAME);
 
-        // @feedback on below: we should be able to customize the remote account, should be named: `create_remote_account`, ensure doc comment specifies what happens if exists
+        // @feedback✅ on below: we should be able to customize the remote account, should be named: `create_remote_account`, ensure doc comment specifies what happens if exists
         // let remote_acc_tx = home_acc.register_remote_account(REMOTE_CHAIN_NAME)?;
 
         // thought: maybe we could do with account builder (like sub_account method)
         // Ex: let remote_acc = home_client.account_builder().remote_account(home_account_client)
 
-        // @feedback - wrong doc comment, also should be named `create_remote_account`
+        // @feedback✅ - wrong doc comment, also should be named `create_remote_account`
         // parent_account_client.create_ibc_account()
         let remote_acc_tx = home_account_client.create_ibc_account(
             REMOTE_CHAIN_NAME,

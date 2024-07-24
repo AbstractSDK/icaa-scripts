@@ -161,7 +161,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     let mut home_base_denom_balance = home_account_client.query_balance(home_denom)?;
     if home_base_denom_balance.is_zero() {
         warn!("Sending some funds from wallet to account.");
-        // @feedback make it easier to send funds from wallet?
+        // @feedback make it easier to send funds from wallet? // Agree, added ORC-150
         //  - maybe acc_client.deposit() method
         let _bank_send_tx = rt.block_on(home.daemon.sender.bank_send(
             // @feedback: home_account_client.address() to get the address of the proxy?
@@ -179,7 +179,7 @@ fn icaa_demo() -> anyhow::Result<()> {
         "Sending funds from {} to {}.",
         HOME_CHAIN_ID, REMOTE_CHAIN_NAME
     );
-    // @feedback: should be able to send_funds_to_remote
+    // @feedback: should be able to send_funds_to_remote // Adding `deposit` on RemoteAccount
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
         abstract_core::proxy::ExecuteMsg::IbcAction {
@@ -240,7 +240,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     press_enter_to_continue();
 
     // send funds back
-    // @feedback: should be able to request_remote_funds
+    // @feedback: should be able to request_remote_funds // Adding `withdraw` on RemoteAccount
     warn!("Requesting all funds back");
     let send_funds_tx = home_acc.manager.execute_on_module(
         PROXY,
@@ -351,7 +351,7 @@ fn get_remote_balance(
         remote_account_id.clone(),
     );
 
-    // @feedback: should be able to do something like:
+    // @feedback✅: should be able to do something like:
     // remote_acc.balances()
     // remote_acc.balance(X)
     // remote_acc.ans_balance(ansX)

@@ -23,12 +23,13 @@ pub const JUNO_1: ChainInfo = ChainInfo {
 pub const IBC_CLIENT_ID: &str = "abstract:ibc-client";
 
 // @feedback: it would be really nice to be able to query a module directly from the account
+// @uno-feedback: Why not use abstract-client `Application` helper?
 pub fn list_remote_proxies(
-    chain: &Daemon,
-    account: &AbstractAccount<Daemon>,
+    // Unused now
+    // chain: &Daemon,
+    account: &abstract_client::Account<Daemon>,
 ) -> anyhow::Result<Vec<(ChainName, Option<String>)>> {
-    let ibc_client = IbcClient::new(IBC_CLIENT_ID, chain.clone());
-    ibc_client.set_address(&account.manager.module_info(IBC_CLIENT_ID)?.unwrap().address);
+    let ibc_client = account.application::<IbcClient<_>>()?;
     let remote_proxies = ibc_client
         .list_remote_proxies_by_account_id(account.id()?)?
         .proxies;
