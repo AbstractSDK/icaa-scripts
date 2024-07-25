@@ -7,15 +7,10 @@ use abstract_dex_adapter::DEX_ADAPTER_ID;
 use abstract_interface::{Abstract, AbstractAccount, ManagerExecFns};
 use abstract_std as abstract_core;
 use abstract_std::objects::AnsAsset;
-use abstract_std::{
-    ibc_host::{HelperAction, HostAction},
-    manager::ModuleInstallConfig,
-    objects::{
-        chain_name::ChainName, gov_type::GovernanceDetails, module::ModuleInfo, AccountId,
-        AssetEntry,
-    },
-    PROXY,
-};
+use abstract_std::{ibc_client, ibc_host::{HelperAction, HostAction}, manager, manager::ModuleInstallConfig, objects::{
+    chain_name::ChainName, gov_type::GovernanceDetails, module::ModuleInfo, AccountId,
+    AssetEntry,
+}, PROXY, proxy};
 use cosmwasm_std::{coins, to_json_binary, Uint128};
 use cw_asset::AssetInfo;
 use cw_orch_interchain::prelude::{ChannelCreationValidator, DaemonInterchainEnv, InterchainEnv};
@@ -240,6 +235,7 @@ fn icaa_demo() -> anyhow::Result<()> {
     press_enter_to_continue();
 
     // send funds back
+    // @feedback revised: send_remote_funds(remote_chain_name, funds, memo)
     // @feedback: should be able to request_remote_funds
     warn!("Requesting all funds back");
     let send_funds_tx = home_acc.manager.execute_on_module(
@@ -248,6 +244,34 @@ fn icaa_demo() -> anyhow::Result<()> {
             msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
                 host_chain: REMOTE_CHAIN_NAME.into(),
                 action: HostAction::Helpers(HelperAction::SendAllBack),
+            },
+        },
+    )?;
+
+    // @feedback we should have a helper for exec_on_proxy(msg: proxy::ExecuteMsg)
+    let _manual_send_funds_tx = home_acc.manager.execute_on_module(
+        PROXY,
+        abstract_core::proxy::ExecuteMsg::IbcAction {
+            msg: abstract_core::ibc_client::ExecuteMsg::RemoteAction {
+                host_chain: REMOTE_CHAIN_NAME.into(),
+                action: HostAction::Dispatch {
+                    manager_msgs: vec![manager::ExecuteMsg::ExecOnModule {
+                        module_id: PROXY.to_string(),
+                        exec_msg: to_json_binary(&proxy::ExecuteMsg::IbcAction {
+                            msg: ibc_client::ExecuteMsg::SendFunds {
+                                host_chain: "noble".to_string(),
+                                funds: vec![],
+                                // memo: Some(json!({
+                                //   "forward": {
+                                //     "receiver": "juno_proxy",
+                                //     "port": "transfer",
+                                //     "channel": "channel-noble-"
+                                //   }
+                                // }).to_string())
+                            },
+                        })?,
+                    }],
+                },
             },
         },
     )?;
